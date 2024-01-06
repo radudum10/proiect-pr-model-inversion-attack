@@ -22,9 +22,9 @@ height = 112
 num_classes = 40
 
 
-class RegressionNet(nn.Module):
+class SimpleLinearClassifier(nn.Module):
     def __init__(self, in_features, out_features):
-        super(RegressionNet, self).__init__()
+        super(SimpleLinearClassifier, self).__init__()
 
         self.l1 = nn.Linear(in_features=in_features, out_features=out_features)
 
@@ -54,7 +54,7 @@ def get_loaders(folder_path: Path, batch_size: int, test_size: float) -> (DataLo
     return train_dl, test_dl
 
 
-def eval(model: RegressionNet, loss: nn.CrossEntropyLoss, dl: DataLoader, set_name: str):
+def eval(model: SimpleLinearClassifier, loss: nn.CrossEntropyLoss, dl: DataLoader, set_name: str):
     losses = []
     t, f = 0, 0
 
@@ -82,7 +82,7 @@ def eval(model: RegressionNet, loss: nn.CrossEntropyLoss, dl: DataLoader, set_na
     return acc
 
 
-def train(model: RegressionNet, loss: nn.CrossEntropyLoss, optimizer: optim.SGD,
+def train(model: SimpleLinearClassifier, loss: nn.CrossEntropyLoss, optimizer: optim.SGD,
           train_dl: DataLoader, test_dl: DataLoader):
 
     best_acc = 0.0
@@ -136,7 +136,7 @@ def main():
 
     train_dl, test_dl = get_loaders(args.dataset_folder, args.bs, args.test_size)
 
-    model = RegressionNet(width * height, num_classes)
+    model = SimpleLinearClassifier(width * height, num_classes)
     model = model.cuda()
     print(model)
 
