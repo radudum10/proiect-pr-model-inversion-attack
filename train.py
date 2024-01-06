@@ -6,15 +6,14 @@ import argparse
 import os
 from pathlib import Path
 from math import floor
-from tqdm import tqdm
 import numpy as np
 
 
 config = {
-    'lr': 0.1,
+    'lr': 1e-3,
     'momentum': 0.8,
     'weight_decay': 1e-5,
-    'epochs': 30
+    'epochs': 10
 }
 
 # The AT&T Database of Faces has 92x112 images of 40 people.
@@ -30,7 +29,7 @@ class RegressionNet(nn.Module):
         self.l1 = nn.Linear(in_features=in_features, out_features=out_features)
 
     
-    def forward(self, x): # b, height, width
+    def forward(self, x): # b, height x width
         return self.l1(x) # b, num_classes
 
 
@@ -55,16 +54,46 @@ def get_loaders(folder_path: Path, batch_size: int, test_size: float) -> (DataLo
     return train_dl, test_dl
 
 
+def eval(model: RegressionNet, loss: nn.CrossEntropyLoss, dl: DataLoader, set_name: str):
+    losses = []
+    t, f = 0, 0
+
+    for Xs, gt in dl:
+        Xs, gt = Xs.cuda(), gt.cuda()
+        Xs = Xs.reshape(Xs.size(0), -1) # b, height x width
+
+        # forward
+        with torch.no_grad():
+            logits = model(Xs)
+            J = loss(logits, gt)
+            losses.append(J.item())
+
+        yc = gt.cpu()
+        y_hat = logits.detach().argmax(dim=1).cpu()
+
+        t += int(yc.eq(y_hat).sum())
+        f += int(yc.ne(y_hat).sum())
+
+    acc = t / (t + f)
+    print("=" * 5 + f"{set_name} evaluation" + "=" * 5)
+    print(f"accuracy={acc * 100}%")
+    print(f"loss={np.mean(losses)}")
+
+    return acc
+
+
 def train(model: RegressionNet, loss: nn.CrossEntropyLoss, optimizer: optim.SGD,
           train_dl: DataLoader, test_dl: DataLoader):
+
+    best_acc = 0.0
     
     for epoch in range(config['epochs']):
         model.train()
         losses = []
 
-        for Xs, ys in tqdm(train_dl):
+        for Xs, ys in train_dl:
             Xs, ys = Xs.cuda(), ys.cuda()
-            Xs = Xs.reshape(Xs.size(0), -1) # b, height, width
+            Xs = Xs.reshape(Xs.size(0), -1) # b, height x width
 
             # cleaning the gradients
             model.zero_grad()
@@ -82,14 +111,17 @@ def train(model: RegressionNet, loss: nn.CrossEntropyLoss, optimizer: optim.SGD,
             optimizer.step()
 
             losses.append(J.item())
-
-        print(f"epoch {epoch}: training_loss={np.mean(losses)}")
+        
+        print("=" * 10 + f"epoch: {epoch}" + "=" * 10)
+        print(f"training_loss={np.mean(losses)}")
+        train_acc = eval(model, loss, train_dl, 'train')
+        test_acc = eval(model, loss, test_dl, 'test')
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset_folder", help="The path to the folder where the dataset is.", type=Path)
-    parser.add_argument("--bs", help="The batch size for the dataloader.", type=int, default=2)
+    parser.add_argument("--bs", help="The batch size for the dataloader.", type=int, default=1)
     parser.add_argument("--test_size", help="The size of the test dataset (should be <1)", type=float, default=0.2)
 
     args = parser.parse_args()
