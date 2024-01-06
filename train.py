@@ -117,6 +117,14 @@ def train(model: RegressionNet, loss: nn.CrossEntropyLoss, optimizer: optim.SGD,
         train_acc = eval(model, loss, train_dl, 'train')
         test_acc = eval(model, loss, test_dl, 'test')
 
+        if test_acc > 0.8 and test_acc > best_acc:
+            print("Saving best model")
+            best_acc = test_acc
+            torch.save(
+                model.state_dict(),
+                f"best_model_train_acc{train_acc}_test_acc{test_acc}_epoch{epoch}.pth"
+            )
+
 
 def main():
     parser = argparse.ArgumentParser()
