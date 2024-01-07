@@ -33,9 +33,6 @@ def attack(model: SimpleLinearClassifier, target: int, output_folder: Path):
     last_loss = float('inf')
     loss_didnt_decrease = 0
 
-    logits = model(dummy_input)
-    y_hat = logits.detach().argmax(dim=1).cpu()
-
     for _ in range(attack_iters):
         logits = model.forward(dummy_input)
         
